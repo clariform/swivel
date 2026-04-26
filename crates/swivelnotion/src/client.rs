@@ -1,4 +1,5 @@
 use crate::error::NotionError;
+use crate::types::NotionPage;
 use reqwest::blocking::Client;
 use serde_json::Value;
 use std::env;
@@ -48,5 +49,10 @@ impl NotionClient {
 
     pub fn get_data_source_raw(&self, data_source_id: &str) -> Result<Value, NotionError> {
         self.get_json(&format!("{BASE_URL}/data_sources/{data_source_id}"))
+    }
+
+    pub fn get_page_typed(&self, page_id: &str) -> Result<NotionPage, NotionError> {
+        let value = self.get_page_raw(page_id)?;
+        Ok(serde_json::from_value(value)?)
     }
 }
