@@ -1,15 +1,22 @@
-[package]
-name = "swivel"
-version = "0.1.0"
-edition = "2021"
-description = "One trait, many databases: a tiny Rust adapter layer for Notion, Supabase, and Postgres."
-license = "MIT"
-readme = "README.md"
-repository = "https://github.com/suhailphotos/swivel"
-keywords = ["database", "traits", "notion", "supabase", "postgres"]
-categories = ["database", "api-bindings"]
+[workspace]
+members = [
+  "crates/swivelcli",
+  "crates/swivelcore",
+  "crates/swiveltypes",
+  "crates/swivelnotion",
+]
+resolver = "3"
 
-[dependencies]
-reqwest = { version = "0.12.23", default-features = false, features = ["blocking", "rustls-tls"] }
+[workspace.package]
+edition = "2024"
+license = "MIT"
+version = "0.1.0"
+authors = ["Suhail"]
+
+[workspace.dependencies]
 anyhow = "1"
-serde_json = "1.0.145"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", features = ["blocking", "json", "rustls-tls"] }
+clap = { version = "4", features = ["derive"] }

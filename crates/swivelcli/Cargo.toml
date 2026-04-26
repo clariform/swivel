@@ -1,0 +1,16 @@
+[package]
+name = "swivelcli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "swivel"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+swivelcore = { path = "../swivelcore" }
+swivelnotion = { path = "../swivelnotion" }
