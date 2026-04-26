@@ -72,7 +72,7 @@ fn main() -> Result<()> {
             }
             NotionCommands::GetPageDoc { id, out } => {
                 let page = client.get_page_typed(&id)?;
-                let blocks = client.get_all_top_level_blocks(&id)?;
+                let blocks = client.get_all_blocks_recursive(&id)?;
                 let doc = if blocks.is_empty() {
                     page_to_rag_document(&page)
                 } else {
@@ -82,7 +82,7 @@ fn main() -> Result<()> {
             }
             NotionCommands::GetPageChunks { id, out } => {
                 let page = client.get_page_typed(&id)?;
-                let blocks = client.get_all_top_level_blocks(&id)?;
+                let blocks = client.get_all_blocks_recursive(&id)?;
                 let doc = if blocks.is_empty() {
                     page_to_rag_document(&page)
                 } else {

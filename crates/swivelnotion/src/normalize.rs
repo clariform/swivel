@@ -94,6 +94,8 @@ fn metadata_json(value: serde_json::Value) -> serde_json::Value {
 }
 
 fn block_to_node(block: &NotionBlock) -> BlockNode {
+    let children = block.children.iter().map(block_to_node).collect::<Vec<_>>();
+
     match block.kind.as_str() {
         "heading_1" => BlockNode {
             id: Some(block.id.clone()),
@@ -103,7 +105,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
                 "is_toggleable": block.heading_1.as_ref().and_then(|b| b.is_toggleable),
                 "has_children": block.has_children
             })),
-            children: Vec::new(),
+            children,
         },
         "heading_2" => BlockNode {
             id: Some(block.id.clone()),
@@ -113,7 +115,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
                 "is_toggleable": block.heading_2.as_ref().and_then(|b| b.is_toggleable),
                 "has_children": block.has_children
             })),
-            children: Vec::new(),
+            children,
         },
         "heading_3" => BlockNode {
             id: Some(block.id.clone()),
@@ -123,7 +125,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
                 "is_toggleable": block.heading_3.as_ref().and_then(|b| b.is_toggleable),
                 "has_children": block.has_children
             })),
-            children: Vec::new(),
+            children,
         },
         "heading_4" => BlockNode {
             id: Some(block.id.clone()),
@@ -133,7 +135,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
                 "is_toggleable": block.heading_4.as_ref().and_then(|b| b.is_toggleable),
                 "has_children": block.has_children
             })),
-            children: Vec::new(),
+            children,
         },
         "paragraph" => BlockNode {
             id: Some(block.id.clone()),
@@ -142,7 +144,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
             metadata: metadata_json(serde_json::json!({
                 "has_children": block.has_children
             })),
-            children: Vec::new(),
+            children,
         },
         "bulleted_list_item" => BlockNode {
             id: Some(block.id.clone()),
@@ -154,7 +156,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
             metadata: metadata_json(serde_json::json!({
                 "has_children": block.has_children
             })),
-            children: Vec::new(),
+            children,
         },
         "numbered_list_item" => BlockNode {
             id: Some(block.id.clone()),
@@ -166,7 +168,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
             metadata: metadata_json(serde_json::json!({
                 "has_children": block.has_children
             })),
-            children: Vec::new(),
+            children,
         },
         "quote" => BlockNode {
             id: Some(block.id.clone()),
@@ -175,7 +177,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
             metadata: metadata_json(serde_json::json!({
                 "has_children": block.has_children
             })),
-            children: Vec::new(),
+            children,
         },
         "to_do" => BlockNode {
             id: Some(block.id.clone()),
@@ -185,7 +187,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
                 "checked": block.to_do.as_ref().map(|b| b.checked).unwrap_or(false),
                 "has_children": block.has_children
             })),
-            children: Vec::new(),
+            children,
         },
         "toggle" => BlockNode {
             id: Some(block.id.clone()),
@@ -194,7 +196,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
             metadata: metadata_json(serde_json::json!({
                 "has_children": block.has_children
             })),
-            children: Vec::new(),
+            children,
         },
         "code" => BlockNode {
             id: Some(block.id.clone()),
@@ -204,7 +206,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
                 "language": block.code.as_ref().and_then(|b| b.language.clone()),
                 "caption": block.code.as_ref().map(|b| plain_text(b.caption.as_deref().unwrap_or(&[]))).filter(|s| !s.is_empty())
             })),
-            children: Vec::new(),
+            children,
         },
         "callout" => BlockNode {
             id: Some(block.id.clone()),
@@ -214,14 +216,14 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
                 "has_children": block.has_children,
                 "icon_type": block.callout.as_ref().and_then(|b| b.icon.as_ref().map(|i| i.kind.clone()))
             })),
-            children: Vec::new(),
+            children,
         },
         "divider" => BlockNode {
             id: Some(block.id.clone()),
             kind: block.kind.clone(),
             text: None,
             metadata: metadata_json(serde_json::json!({})),
-            children: Vec::new(),
+            children,
         },
         "equation" => BlockNode {
             id: Some(block.id.clone()),
@@ -230,7 +232,7 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
             metadata: metadata_json(serde_json::json!({
                 "expression": block.equation.as_ref().map(|b| b.expression.clone())
             })),
-            children: Vec::new(),
+            children,
         },
         _ => BlockNode {
             id: Some(block.id.clone()),
@@ -240,8 +242,23 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
                 "original_kind": block.kind,
                 "has_children": block.has_children
             })),
-            children: Vec::new(),
+            children,
         },
+    }
+}
+
+fn push_plain_text_recursive(block: &BlockNode, out: &mut Vec<String>) {
+    if block.kind != "divider" {
+        if let Some(text) = &block.text {
+            let text = text.trim();
+            if !text.is_empty() {
+                out.push(text.to_string());
+            }
+        }
+    }
+
+    for child in &block.children {
+        push_plain_text_recursive(child, out);
     }
 }
 
@@ -249,17 +266,7 @@ fn blocks_to_plain_text(blocks: &[BlockNode]) -> String {
     let mut out = Vec::new();
 
     for block in blocks {
-        match block.kind.as_str() {
-            "divider" => {}
-            _ => {
-                if let Some(text) = &block.text {
-                    let text = text.trim();
-                    if !text.is_empty() {
-                        out.push(text.to_string());
-                    }
-                }
-            }
-        }
+        push_plain_text_recursive(block, &mut out);
     }
 
     out.join("\n\n")

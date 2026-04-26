@@ -85,14 +85,29 @@ fn build_chunk(
     }
 }
 
+fn flatten_blocks<'a>(
+    blocks: &'a [swiveltypes::BlockNode],
+    out: &mut Vec<&'a swiveltypes::BlockNode>,
+) {
+    for block in blocks {
+        out.push(block);
+        if !block.children.is_empty() {
+            flatten_blocks(&block.children, out);
+        }
+    }
+}
+
 pub fn chunk_document(doc: &RagDocument) -> Vec<RagChunk> {
+    let mut flat_blocks = Vec::new();
+    flatten_blocks(&doc.blocks, &mut flat_blocks);
+
     let mut chunks = Vec::new();
     let mut heading_path: Vec<String> = Vec::new();
     let mut index = 0usize;
     let mut i = 0usize;
 
-    while i < doc.blocks.len() {
-        let block = &doc.blocks[i];
+    while i < flat_blocks.len() {
+        let block = flat_blocks[i];
 
         if is_heading(&block.kind) {
             if let Some(level) = heading_level(&block.kind) {
@@ -122,8 +137,8 @@ pub fn chunk_document(doc: &RagDocument) -> Vec<RagChunk> {
             let mut block_ids = Vec::new();
             let list_kind = block.kind.clone();
 
-            while i < doc.blocks.len() && doc.blocks[i].kind == list_kind {
-                let item = &doc.blocks[i];
+            while i < flat_blocks.len() && flat_blocks[i].kind == list_kind {
+                let item = flat_blocks[i];
                 if let Some(text) = &item.text {
                     let text = text.trim();
                     if !text.is_empty() {

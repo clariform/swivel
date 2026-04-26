@@ -1,5 +1,5 @@
 use crate::error::NotionError;
-use crate::types::{NotionBlockList, NotionPage};
+use crate::types::{NotionBlock, NotionBlockList, NotionPage};
 use reqwest::blocking::Client;
 use serde_json::Value;
 use std::env;
@@ -82,7 +82,7 @@ impl NotionClient {
         Ok(serde_json::from_value(value)?)
     }
 
-    pub fn get_all_top_level_blocks(&self, page_id: &str) -> Result<Vec<crate::types::NotionBlock>, NotionError> {
+    pub fn get_all_top_level_blocks(&self, page_id: &str) -> Result<Vec<NotionBlock>, NotionError> {
         let mut results = Vec::new();
         let mut cursor: Option<String> = None;
 
@@ -98,5 +98,50 @@ impl NotionClient {
         }
 
         Ok(results)
+    }
+
+    fn get_all_child_blocks_for_block(&self, block_id: &str) -> Result<Vec<NotionBlock>, NotionError> {
+        let mut results = Vec::new();
+        let mut cursor: Option<String> = None;
+
+        loop {
+            let page = self.get_block_children_typed(block_id, cursor.as_deref(), 100)?;
+            results.extend(page.results);
+
+            if !page.has_more {
+                break;
+            }
+
+            cursor = page.next_cursor;
+        }
+
+        Ok(results)
+    }
+
+    fn attach_children_recursive(&self, mut block: NotionBlock) -> Result<NotionBlock, NotionError> {
+        if !block.has_children {
+            return Ok(block);
+        }
+
+        let children = self.get_all_child_blocks_for_block(&block.id)?;
+        let mut normalized_children = Vec::with_capacity(children.len());
+
+        for child in children {
+            normalized_children.push(self.attach_children_recursive(child)?);
+        }
+
+        block.children = normalized_children;
+        Ok(block)
+    }
+
+    pub fn get_all_blocks_recursive(&self, page_id: &str) -> Result<Vec<NotionBlock>, NotionError> {
+        let top_level = self.get_all_top_level_blocks(page_id)?;
+        let mut out = Vec::with_capacity(top_level.len());
+
+        for block in top_level {
+            out.push(self.attach_children_recursive(block)?);
+        }
+
+        Ok(out)
     }
 }

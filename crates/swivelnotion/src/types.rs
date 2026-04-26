@@ -20,11 +20,6 @@ pub struct NotionFileObject {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NotionEmojiIcon {
-    pub emoji: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotionIconObject {
     pub name: Option<String>,
     pub color: Option<String>,
@@ -216,11 +211,6 @@ pub struct NotionCalloutBlock {
 pub struct NotionDividerBlock {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NotionEquationInner {
-    pub expression: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotionEquationBlock {
     pub expression: String,
 }
@@ -261,4 +251,7 @@ pub struct NotionBlock {
     pub divider: Option<NotionDividerBlock>,
     pub equation: Option<NotionEquationBlock>,
     pub unsupported: Option<NotionUnsupportedBlock>,
+
+    #[serde(skip)]
+    pub children: Vec<NotionBlock>,
 }
