@@ -61,3 +61,21 @@ pub struct RagDocument {
     pub blocks: Vec<BlockNode>,
     pub plain_text: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RagChunk {
+    pub chunk_id: String,
+    pub document_id: String,
+    pub source: String,
+    pub source_kind: String,
+    pub page_title: String,
+    pub url: Option<String>,
+    pub chunk_kind: String,
+    pub heading_path: Vec<String>,
+    pub block_ids: Vec<String>,
+    pub text: String,
+    pub tags: Vec<String>,
+    pub relation_ids: BTreeMap<String, Vec<String>>,
+    pub lineage: DocumentLineage,
+    pub metadata: serde_json::Value,
+}
