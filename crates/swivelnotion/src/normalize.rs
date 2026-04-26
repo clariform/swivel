@@ -89,26 +89,159 @@ fn build_lineage(page: &NotionPage) -> DocumentLineage {
     }
 }
 
-fn block_text(block: &NotionBlock) -> Option<String> {
-    match block.kind.as_str() {
-        "heading_1" => block.heading_1.as_ref().map(|b| plain_text(&b.rich_text)),
-        "heading_2" => block.heading_2.as_ref().map(|b| plain_text(&b.rich_text)),
-        "heading_3" => block.heading_3.as_ref().map(|b| plain_text(&b.rich_text)),
-        "paragraph" => block.paragraph.as_ref().map(|b| plain_text(&b.rich_text)),
-        "bulleted_list_item" => block
-            .bulleted_list_item
-            .as_ref()
-            .map(|b| plain_text(&b.rich_text)),
-        _ => None,
-    }
+fn metadata_json(value: serde_json::Value) -> serde_json::Value {
+    value
 }
 
 fn block_to_node(block: &NotionBlock) -> BlockNode {
-    BlockNode {
-        id: Some(block.id.clone()),
-        kind: block.kind.clone(),
-        text: block_text(block),
-        children: Vec::new(),
+    match block.kind.as_str() {
+        "heading_1" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block.heading_1.as_ref().map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "is_toggleable": block.heading_1.as_ref().and_then(|b| b.is_toggleable),
+                "has_children": block.has_children
+            })),
+            children: Vec::new(),
+        },
+        "heading_2" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block.heading_2.as_ref().map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "is_toggleable": block.heading_2.as_ref().and_then(|b| b.is_toggleable),
+                "has_children": block.has_children
+            })),
+            children: Vec::new(),
+        },
+        "heading_3" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block.heading_3.as_ref().map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "is_toggleable": block.heading_3.as_ref().and_then(|b| b.is_toggleable),
+                "has_children": block.has_children
+            })),
+            children: Vec::new(),
+        },
+        "heading_4" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block.heading_4.as_ref().map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "is_toggleable": block.heading_4.as_ref().and_then(|b| b.is_toggleable),
+                "has_children": block.has_children
+            })),
+            children: Vec::new(),
+        },
+        "paragraph" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block.paragraph.as_ref().map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "has_children": block.has_children
+            })),
+            children: Vec::new(),
+        },
+        "bulleted_list_item" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block
+                .bulleted_list_item
+                .as_ref()
+                .map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "has_children": block.has_children
+            })),
+            children: Vec::new(),
+        },
+        "numbered_list_item" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block
+                .numbered_list_item
+                .as_ref()
+                .map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "has_children": block.has_children
+            })),
+            children: Vec::new(),
+        },
+        "quote" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block.quote.as_ref().map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "has_children": block.has_children
+            })),
+            children: Vec::new(),
+        },
+        "to_do" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block.to_do.as_ref().map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "checked": block.to_do.as_ref().map(|b| b.checked).unwrap_or(false),
+                "has_children": block.has_children
+            })),
+            children: Vec::new(),
+        },
+        "toggle" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block.toggle.as_ref().map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "has_children": block.has_children
+            })),
+            children: Vec::new(),
+        },
+        "code" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block.code.as_ref().map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "language": block.code.as_ref().and_then(|b| b.language.clone()),
+                "caption": block.code.as_ref().map(|b| plain_text(b.caption.as_deref().unwrap_or(&[]))).filter(|s| !s.is_empty())
+            })),
+            children: Vec::new(),
+        },
+        "callout" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block.callout.as_ref().map(|b| plain_text(&b.rich_text)),
+            metadata: metadata_json(serde_json::json!({
+                "has_children": block.has_children,
+                "icon_type": block.callout.as_ref().and_then(|b| b.icon.as_ref().map(|i| i.kind.clone()))
+            })),
+            children: Vec::new(),
+        },
+        "divider" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: None,
+            metadata: metadata_json(serde_json::json!({})),
+            children: Vec::new(),
+        },
+        "equation" => BlockNode {
+            id: Some(block.id.clone()),
+            kind: block.kind.clone(),
+            text: block.equation.as_ref().map(|b| b.expression.clone()),
+            metadata: metadata_json(serde_json::json!({
+                "expression": block.equation.as_ref().map(|b| b.expression.clone())
+            })),
+            children: Vec::new(),
+        },
+        _ => BlockNode {
+            id: Some(block.id.clone()),
+            kind: format!("unsupported:{}", block.kind),
+            text: None,
+            metadata: metadata_json(serde_json::json!({
+                "original_kind": block.kind,
+                "has_children": block.has_children
+            })),
+            children: Vec::new(),
+        },
     }
 }
 
@@ -116,10 +249,15 @@ fn blocks_to_plain_text(blocks: &[BlockNode]) -> String {
     let mut out = Vec::new();
 
     for block in blocks {
-        if let Some(text) = &block.text {
-            let text = text.trim();
-            if !text.is_empty() {
-                out.push(text.to_string());
+        match block.kind.as_str() {
+            "divider" => {}
+            _ => {
+                if let Some(text) = &block.text {
+                    let text = text.trim();
+                    if !text.is_empty() {
+                        out.push(text.to_string());
+                    }
+                }
             }
         }
     }

@@ -43,6 +43,7 @@ pub struct BlockNode {
     pub id: Option<String>,
     pub kind: String,
     pub text: Option<String>,
+    pub metadata: serde_json::Value,
     pub children: Vec<BlockNode>,
 }
 

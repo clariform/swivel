@@ -20,6 +20,11 @@ pub struct NotionFileObject {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionEmojiIcon {
+    pub emoji: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotionIconObject {
     pub name: Option<String>,
     pub color: Option<String>,
@@ -30,6 +35,7 @@ pub struct NotionIcon {
     #[serde(rename = "type")]
     pub kind: String,
     pub icon: Option<NotionIconObject>,
+    pub emoji: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -140,13 +146,6 @@ pub struct NotionBlockList {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NotionBlockTextContainer {
-    #[serde(default)]
-    pub rich_text: Vec<NotionRichText>,
-    pub color: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotionHeadingBlock {
     #[serde(default)]
     pub rich_text: Vec<NotionRichText>,
@@ -169,6 +168,69 @@ pub struct NotionBulletedListItemBlock {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionNumberedListItemBlock {
+    #[serde(default)]
+    pub rich_text: Vec<NotionRichText>,
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionQuoteBlock {
+    #[serde(default)]
+    pub rich_text: Vec<NotionRichText>,
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionToDoBlock {
+    #[serde(default)]
+    pub rich_text: Vec<NotionRichText>,
+    pub checked: bool,
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionToggleBlock {
+    #[serde(default)]
+    pub rich_text: Vec<NotionRichText>,
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionCodeBlock {
+    #[serde(default)]
+    pub rich_text: Vec<NotionRichText>,
+    pub caption: Option<Vec<NotionRichText>>,
+    pub language: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionCalloutBlock {
+    #[serde(default)]
+    pub rich_text: Vec<NotionRichText>,
+    pub icon: Option<NotionIcon>,
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionDividerBlock {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionEquationInner {
+    pub expression: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionEquationBlock {
+    pub expression: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionUnsupportedBlock {
+    pub block_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotionBlock {
     pub object: String,
     pub id: String,
@@ -187,6 +249,16 @@ pub struct NotionBlock {
     pub heading_1: Option<NotionHeadingBlock>,
     pub heading_2: Option<NotionHeadingBlock>,
     pub heading_3: Option<NotionHeadingBlock>,
+    pub heading_4: Option<NotionHeadingBlock>,
     pub paragraph: Option<NotionParagraphBlock>,
     pub bulleted_list_item: Option<NotionBulletedListItemBlock>,
+    pub numbered_list_item: Option<NotionNumberedListItemBlock>,
+    pub quote: Option<NotionQuoteBlock>,
+    pub to_do: Option<NotionToDoBlock>,
+    pub toggle: Option<NotionToggleBlock>,
+    pub code: Option<NotionCodeBlock>,
+    pub callout: Option<NotionCalloutBlock>,
+    pub divider: Option<NotionDividerBlock>,
+    pub equation: Option<NotionEquationBlock>,
+    pub unsupported: Option<NotionUnsupportedBlock>,
 }
