@@ -72,6 +72,7 @@ pub struct RagChunk {
     pub url: Option<String>,
     pub chunk_kind: String,
     pub heading_path: Vec<String>,
+    pub local_heading_path: Vec<String>,
     pub container_path: Vec<String>,
     pub block_ids: Vec<String>,
     pub text: String,

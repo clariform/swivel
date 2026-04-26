@@ -38,6 +38,7 @@ fn is_container(kind: &str) -> bool {
 fn enrich_text(
     page_title: &str,
     heading_path: &[String],
+    local_heading_path: &[String],
     container_path: &[String],
     chunk_kind: &str,
     body: &str,
@@ -49,6 +50,10 @@ fn enrich_text(
 
     if !heading_path.is_empty() {
         parts.push(format!("Section: {}", heading_path.join(" > ")));
+    }
+
+    if !local_heading_path.is_empty() {
+        parts.push(format!("Local section: {}", local_heading_path.join(" > ")));
     }
 
     if !container_path.is_empty() {
@@ -70,6 +75,7 @@ fn enrich_text(
 fn build_chunk(
     doc: &RagDocument,
     heading_path: &[String],
+    local_heading_path: &[String],
     container_path: &[String],
     chunk_kind: &str,
     block_ids: Vec<String>,
@@ -86,11 +92,13 @@ fn build_chunk(
         url: doc.url.clone(),
         chunk_kind: chunk_kind.to_string(),
         heading_path: heading_path.to_vec(),
+        local_heading_path: local_heading_path.to_vec(),
         container_path: container_path.to_vec(),
         block_ids,
         text: enrich_text(
             &doc.title,
             heading_path,
+            local_heading_path,
             container_path,
             chunk_kind,
             &body,
@@ -110,8 +118,14 @@ fn block_label(block: &BlockNode) -> String {
             return format!("{}: {}", block.kind, trimmed);
         }
     }
-
     block.kind.clone()
+}
+
+#[derive(Clone, Debug, Default)]
+struct TraversalContext {
+    page_heading_path: Vec<String>,
+    local_heading_path: Vec<String>,
+    container_path: Vec<String>,
 }
 
 struct ChunkState<'a> {
@@ -131,8 +145,7 @@ impl<'a> ChunkState<'a> {
 
     fn push_chunk(
         &mut self,
-        heading_path: &[String],
-        container_path: &[String],
+        ctx: &TraversalContext,
         chunk_kind: &str,
         block_ids: Vec<String>,
         body: String,
@@ -140,8 +153,9 @@ impl<'a> ChunkState<'a> {
     ) {
         let chunk = build_chunk(
             self.doc,
-            heading_path,
-            container_path,
+            &ctx.page_heading_path,
+            &ctx.local_heading_path,
+            &ctx.container_path,
             chunk_kind,
             block_ids,
             body,
@@ -153,33 +167,40 @@ impl<'a> ChunkState<'a> {
     }
 }
 
+fn update_heading_path(path: &mut Vec<String>, kind: &str, text: &str) {
+    if let Some(level) = heading_level(kind) {
+        while path.len() >= level {
+            path.pop();
+        }
+        let text = text.trim();
+        if !text.is_empty() {
+            path.push(text.to_string());
+        }
+    }
+}
+
 fn walk_blocks(
     blocks: &[BlockNode],
-    heading_path: &mut Vec<String>,
-    container_path: &mut Vec<String>,
+    ctx: &TraversalContext,
     state: &mut ChunkState<'_>,
 ) {
     let mut i = 0usize;
+    let mut current_ctx = ctx.clone();
 
     while i < blocks.len() {
         let block = &blocks[i];
 
         if is_heading(&block.kind) {
-            if let Some(level) = heading_level(&block.kind) {
-                while heading_path.len() >= level {
-                    heading_path.pop();
-                }
+            if let Some(text) = &block.text {
+                update_heading_path(&mut current_ctx.local_heading_path, &block.kind, text);
 
-                if let Some(text) = &block.text {
-                    let text = text.trim();
-                    if !text.is_empty() {
-                        heading_path.push(text.to_string());
-                    }
+                if current_ctx.container_path.is_empty() {
+                    update_heading_path(&mut current_ctx.page_heading_path, &block.kind, text);
                 }
             }
 
             if !block.children.is_empty() {
-                walk_blocks(&block.children, heading_path, container_path, state);
+                walk_blocks(&block.children, &current_ctx, state);
             }
 
             i += 1;
@@ -188,7 +209,7 @@ fn walk_blocks(
 
         if block.kind == "divider" {
             if !block.children.is_empty() {
-                walk_blocks(&block.children, heading_path, container_path, state);
+                walk_blocks(&block.children, &current_ctx, state);
             }
 
             i += 1;
@@ -220,14 +241,9 @@ fn walk_blocks(
                 }
 
                 if !item.children.is_empty() {
-                    let mut nested_container_path = container_path.clone();
-                    nested_container_path.push(block_label(item));
-                    walk_blocks(
-                        &item.children,
-                        heading_path,
-                        &mut nested_container_path,
-                        state,
-                    );
+                    let mut nested_ctx = current_ctx.clone();
+                    nested_ctx.container_path.push(block_label(item));
+                    walk_blocks(&item.children, &nested_ctx, state);
                 }
 
                 i += 1;
@@ -235,8 +251,7 @@ fn walk_blocks(
 
             if !lines.is_empty() {
                 state.push_chunk(
-                    heading_path,
-                    container_path,
+                    &current_ctx,
                     "list",
                     block_ids,
                     lines.join("\n"),
@@ -257,8 +272,7 @@ fn walk_blocks(
                 let block_ids = block.id.clone().map(|x| vec![x]).unwrap_or_default();
 
                 state.push_chunk(
-                    heading_path,
-                    container_path,
+                    &current_ctx,
                     &block.kind,
                     block_ids,
                     body,
@@ -267,18 +281,14 @@ fn walk_blocks(
             }
 
             if !block.children.is_empty() {
-                let mut nested_container_path = container_path.clone();
+                let mut nested_ctx = current_ctx.clone();
 
                 if is_container(&block.kind) {
-                    nested_container_path.push(block_label(block));
+                    nested_ctx.container_path.push(block_label(block));
+                    nested_ctx.local_heading_path.clear();
                 }
 
-                walk_blocks(
-                    &block.children,
-                    heading_path,
-                    &mut nested_container_path,
-                    state,
-                );
+                walk_blocks(&block.children, &nested_ctx, state);
             }
 
             i += 1;
@@ -292,8 +302,7 @@ fn walk_blocks(
             let block_ids = block.id.clone().map(|x| vec![x]).unwrap_or_default();
 
             state.push_chunk(
-                heading_path,
-                container_path,
+                &current_ctx,
                 &block.kind,
                 block_ids,
                 body,
@@ -302,7 +311,7 @@ fn walk_blocks(
         }
 
         if !block.children.is_empty() {
-            walk_blocks(&block.children, heading_path, container_path, state);
+            walk_blocks(&block.children, &current_ctx, state);
         }
 
         i += 1;
@@ -311,10 +320,9 @@ fn walk_blocks(
 
 pub fn chunk_document(doc: &RagDocument) -> Vec<RagChunk> {
     let mut state = ChunkState::new(doc);
-    let mut heading_path = Vec::new();
-    let mut container_path = Vec::new();
+    let ctx = TraversalContext::default();
 
-    walk_blocks(&doc.blocks, &mut heading_path, &mut container_path, &mut state);
+    walk_blocks(&doc.blocks, &ctx, &mut state);
 
     state.chunks
 }
