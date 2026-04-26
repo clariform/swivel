@@ -5,6 +5,7 @@ use swivelcore::chunk::chunk_document;
 use swivelcore::write_json_pretty;
 use swivelnotion::client::NotionClient;
 use swivelnotion::normalize::{page_and_blocks_to_rag_document, page_to_rag_document};
+use swiveltypes::{RagChunk, RagDocument};
 
 #[derive(Debug, Parser)]
 #[command(name = "swivel")]
@@ -39,6 +40,16 @@ enum NotionCommands {
         #[arg(long)]
         out: Option<PathBuf>,
     },
+    GetDataSourceDocs {
+        id: String,
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+    GetDataSourceChunks {
+        id: String,
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
     GetDatabase {
         id: String,
         #[arg(long)]
@@ -60,6 +71,17 @@ fn emit_json<T: serde::Serialize>(value: &T, out: Option<PathBuf>) -> Result<()>
     Ok(())
 }
 
+fn build_document(client: &NotionClient, id: &str) -> Result<RagDocument> {
+    let page = client.get_page_typed(id)?;
+    let blocks = client.get_all_blocks_recursive(id)?;
+    let doc = if blocks.is_empty() {
+        page_to_rag_document(&page)
+    } else {
+        page_and_blocks_to_rag_document(&page, &blocks)
+    };
+    Ok(doc)
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let client = NotionClient::from_env()?;
@@ -71,24 +93,33 @@ fn main() -> Result<()> {
                 emit_json(&value, out)?;
             }
             NotionCommands::GetPageDoc { id, out } => {
-                let page = client.get_page_typed(&id)?;
-                let blocks = client.get_all_blocks_recursive(&id)?;
-                let doc = if blocks.is_empty() {
-                    page_to_rag_document(&page)
-                } else {
-                    page_and_blocks_to_rag_document(&page, &blocks)
-                };
+                let doc = build_document(&client, &id)?;
                 emit_json(&doc, out)?;
             }
             NotionCommands::GetPageChunks { id, out } => {
-                let page = client.get_page_typed(&id)?;
-                let blocks = client.get_all_blocks_recursive(&id)?;
-                let doc = if blocks.is_empty() {
-                    page_to_rag_document(&page)
-                } else {
-                    page_and_blocks_to_rag_document(&page, &blocks)
-                };
+                let doc = build_document(&client, &id)?;
                 let chunks = chunk_document(&doc);
+                emit_json(&chunks, out)?;
+            }
+            NotionCommands::GetDataSourceDocs { id, out } => {
+                let pages = client.get_all_pages_for_data_source(&id)?;
+                let mut docs = Vec::with_capacity(pages.len());
+
+                for page in pages {
+                    docs.push(build_document(&client, &page.id)?);
+                }
+
+                emit_json(&docs, out)?;
+            }
+            NotionCommands::GetDataSourceChunks { id, out } => {
+                let pages = client.get_all_pages_for_data_source(&id)?;
+                let mut chunks: Vec<RagChunk> = Vec::new();
+
+                for page in pages {
+                    let doc = build_document(&client, &page.id)?;
+                    chunks.extend(chunk_document(&doc));
+                }
+
                 emit_json(&chunks, out)?;
             }
             NotionCommands::GetDatabase { id, out } => {

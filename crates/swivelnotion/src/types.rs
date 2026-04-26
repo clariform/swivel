@@ -130,6 +130,17 @@ pub struct NotionPage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionPageQueryResult {
+    pub object: String,
+    #[serde(default)]
+    pub results: Vec<NotionPage>,
+    pub next_cursor: Option<String>,
+    pub has_more: bool,
+    #[serde(rename = "type")]
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotionBlockList {
     pub object: String,
     #[serde(default)]

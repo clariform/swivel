@@ -15,3 +15,4 @@ serde.workspace = true
 serde_json.workspace = true
 swivelcore = { path = "../swivelcore" }
 swivelnotion = { path = "../swivelnotion" }
+swiveltypes = { path = "../swiveltypes" }

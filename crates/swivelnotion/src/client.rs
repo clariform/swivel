@@ -1,5 +1,5 @@
 use crate::error::NotionError;
-use crate::types::{NotionBlock, NotionBlockList, NotionPage};
+use crate::types::{NotionBlock, NotionBlockList, NotionPage, NotionPageQueryResult};
 use reqwest::blocking::Client;
 use serde_json::Value;
 use std::env;
@@ -39,6 +39,26 @@ impl NotionClient {
         Ok(serde_json::from_str(&text)?)
     }
 
+    fn post_json(&self, url: &str, body: &Value) -> Result<Value, NotionError> {
+        let response = self
+            .client
+            .post(url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Notion-Version", NOTION_VERSION)
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send()?;
+
+        let status = response.status();
+        let text = response.text()?;
+
+        if !status.is_success() {
+            return Err(NotionError::HttpStatus { status, body: text });
+        }
+
+        Ok(serde_json::from_str(&text)?)
+    }
+
     pub fn get_page_raw(&self, page_id: &str) -> Result<Value, NotionError> {
         self.get_json(&format!("{BASE_URL}/pages/{page_id}"))
     }
@@ -49,6 +69,26 @@ impl NotionClient {
 
     pub fn get_data_source_raw(&self, data_source_id: &str) -> Result<Value, NotionError> {
         self.get_json(&format!("{BASE_URL}/data_sources/{data_source_id}"))
+    }
+
+    pub fn query_data_source_raw(
+        &self,
+        data_source_id: &str,
+        start_cursor: Option<&str>,
+        page_size: usize,
+    ) -> Result<Value, NotionError> {
+        let mut body = serde_json::json!({
+            "page_size": page_size
+        });
+
+        if let Some(cursor) = start_cursor {
+            body["start_cursor"] = serde_json::Value::String(cursor.to_string());
+        }
+
+        self.post_json(
+            &format!("{BASE_URL}/data_sources/{data_source_id}/query"),
+            &body,
+        )
     }
 
     pub fn get_block_children_raw(
@@ -72,6 +112,16 @@ impl NotionClient {
         Ok(serde_json::from_value(value)?)
     }
 
+    pub fn query_data_source_typed(
+        &self,
+        data_source_id: &str,
+        start_cursor: Option<&str>,
+        page_size: usize,
+    ) -> Result<NotionPageQueryResult, NotionError> {
+        let value = self.query_data_source_raw(data_source_id, start_cursor, page_size)?;
+        Ok(serde_json::from_value(value)?)
+    }
+
     pub fn get_block_children_typed(
         &self,
         block_id: &str,
@@ -80,6 +130,27 @@ impl NotionClient {
     ) -> Result<NotionBlockList, NotionError> {
         let value = self.get_block_children_raw(block_id, start_cursor, page_size)?;
         Ok(serde_json::from_value(value)?)
+    }
+
+    pub fn get_all_pages_for_data_source(
+        &self,
+        data_source_id: &str,
+    ) -> Result<Vec<NotionPage>, NotionError> {
+        let mut results = Vec::new();
+        let mut cursor: Option<String> = None;
+
+        loop {
+            let page = self.query_data_source_typed(data_source_id, cursor.as_deref(), 100)?;
+            results.extend(page.results);
+
+            if !page.has_more {
+                break;
+            }
+
+            cursor = page.next_cursor;
+        }
+
+        Ok(results)
     }
 
     pub fn get_all_top_level_blocks(&self, page_id: &str) -> Result<Vec<NotionBlock>, NotionError> {

@@ -1260,6 +1260,7 @@ dependencies = [
  "serde_json",
  "swivelcore",
  "swivelnotion",
+ "swiveltypes",
 ]
 
 [[package]]
