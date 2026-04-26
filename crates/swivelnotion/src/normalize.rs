@@ -1,33 +1,37 @@
 use std::collections::BTreeMap;
 
 use swiveltypes::{
+    BlockNode,
     DocumentLineage,
     DocumentMetadata,
     PropertyValue,
     RagDocument,
 };
 
-use crate::types::{NotionPage, NotionPropertyValue, NotionRichText};
+use crate::types::{
+    NotionBlock,
+    NotionPage,
+    NotionPropertyValue,
+    NotionRichText,
+};
 
-fn plain_text(parts: Option<&Vec<NotionRichText>>) -> String {
-    parts
-        .map(|items| items.iter().map(|x| x.plain_text.as_str()).collect::<String>())
-        .unwrap_or_default()
+fn plain_text(parts: &[NotionRichText]) -> String {
+    parts.iter().map(|x| x.plain_text.as_str()).collect::<String>()
 }
 
 fn title_from_page(page: &NotionPage) -> String {
     page.properties
         .values()
         .find(|prop| prop.kind == "title")
-        .map(|prop| plain_text(prop.title.as_ref()))
+        .map(|prop| plain_text(prop.title.as_deref().unwrap_or(&[])))
         .filter(|title| !title.is_empty())
         .unwrap_or_else(|| "Untitled".to_string())
 }
 
 fn property_to_value(prop: &NotionPropertyValue) -> PropertyValue {
     match prop.kind.as_str() {
-        "title" => PropertyValue::Text(plain_text(prop.title.as_ref())),
-        "rich_text" => PropertyValue::Text(plain_text(prop.rich_text.as_ref())),
+        "title" => PropertyValue::Text(plain_text(prop.title.as_deref().unwrap_or(&[]))),
+        "rich_text" => PropertyValue::Text(plain_text(prop.rich_text.as_deref().unwrap_or(&[]))),
         "select" => prop
             .select
             .as_ref()
@@ -85,7 +89,49 @@ fn build_lineage(page: &NotionPage) -> DocumentLineage {
     }
 }
 
+fn block_text(block: &NotionBlock) -> Option<String> {
+    match block.kind.as_str() {
+        "heading_1" => block.heading_1.as_ref().map(|b| plain_text(&b.rich_text)),
+        "heading_2" => block.heading_2.as_ref().map(|b| plain_text(&b.rich_text)),
+        "heading_3" => block.heading_3.as_ref().map(|b| plain_text(&b.rich_text)),
+        "paragraph" => block.paragraph.as_ref().map(|b| plain_text(&b.rich_text)),
+        "bulleted_list_item" => block
+            .bulleted_list_item
+            .as_ref()
+            .map(|b| plain_text(&b.rich_text)),
+        _ => None,
+    }
+}
+
+fn block_to_node(block: &NotionBlock) -> BlockNode {
+    BlockNode {
+        id: Some(block.id.clone()),
+        kind: block.kind.clone(),
+        text: block_text(block),
+        children: Vec::new(),
+    }
+}
+
+fn blocks_to_plain_text(blocks: &[BlockNode]) -> String {
+    let mut out = Vec::new();
+
+    for block in blocks {
+        if let Some(text) = &block.text {
+            let text = text.trim();
+            if !text.is_empty() {
+                out.push(text.to_string());
+            }
+        }
+    }
+
+    out.join("\n\n")
+}
+
 pub fn page_to_rag_document(page: &NotionPage) -> RagDocument {
+    page_and_blocks_to_rag_document(page, &[])
+}
+
+pub fn page_and_blocks_to_rag_document(page: &NotionPage, blocks: &[NotionBlock]) -> RagDocument {
     let mut properties = BTreeMap::new();
     let mut relation_ids = BTreeMap::new();
     let mut tags = Vec::new();
@@ -108,6 +154,9 @@ pub fn page_to_rag_document(page: &NotionPage) -> RagDocument {
         properties.insert(name.clone(), value);
     }
 
+    let normalized_blocks: Vec<BlockNode> = blocks.iter().map(block_to_node).collect();
+    let plain_text = blocks_to_plain_text(&normalized_blocks);
+
     RagDocument {
         id: page.id.clone(),
         source: "notion".to_string(),
@@ -122,7 +171,7 @@ pub fn page_to_rag_document(page: &NotionPage) -> RagDocument {
             relation_ids,
             tags,
         },
-        blocks: Vec::new(),
-        plain_text: String::new(),
+        blocks: normalized_blocks,
+        plain_text,
     }
 }

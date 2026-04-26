@@ -1,5 +1,5 @@
 use crate::error::NotionError;
-use crate::types::NotionPage;
+use crate::types::{NotionBlockList, NotionPage};
 use reqwest::blocking::Client;
 use serde_json::Value;
 use std::env;
@@ -51,8 +51,52 @@ impl NotionClient {
         self.get_json(&format!("{BASE_URL}/data_sources/{data_source_id}"))
     }
 
+    pub fn get_block_children_raw(
+        &self,
+        block_id: &str,
+        start_cursor: Option<&str>,
+        page_size: usize,
+    ) -> Result<Value, NotionError> {
+        let mut url = format!("{BASE_URL}/blocks/{block_id}/children?page_size={page_size}");
+
+        if let Some(cursor) = start_cursor {
+            url.push_str("&start_cursor=");
+            url.push_str(cursor);
+        }
+
+        self.get_json(&url)
+    }
+
     pub fn get_page_typed(&self, page_id: &str) -> Result<NotionPage, NotionError> {
         let value = self.get_page_raw(page_id)?;
         Ok(serde_json::from_value(value)?)
+    }
+
+    pub fn get_block_children_typed(
+        &self,
+        block_id: &str,
+        start_cursor: Option<&str>,
+        page_size: usize,
+    ) -> Result<NotionBlockList, NotionError> {
+        let value = self.get_block_children_raw(block_id, start_cursor, page_size)?;
+        Ok(serde_json::from_value(value)?)
+    }
+
+    pub fn get_all_top_level_blocks(&self, page_id: &str) -> Result<Vec<crate::types::NotionBlock>, NotionError> {
+        let mut results = Vec::new();
+        let mut cursor: Option<String> = None;
+
+        loop {
+            let page = self.get_block_children_typed(page_id, cursor.as_deref(), 100)?;
+            results.extend(page.results);
+
+            if !page.has_more {
+                break;
+            }
+
+            cursor = page.next_cursor;
+        }
+
+        Ok(results)
     }
 }

@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use swivelcore::write_json_pretty;
 use swivelnotion::client::NotionClient;
-use swivelnotion::normalize::page_to_rag_document;
+use swivelnotion::normalize::{page_and_blocks_to_rag_document, page_to_rag_document};
 
 #[derive(Debug, Parser)]
 #[command(name = "swivel")]
@@ -66,7 +66,12 @@ fn main() -> Result<()> {
             }
             NotionCommands::GetPageDoc { id, out } => {
                 let page = client.get_page_typed(&id)?;
-                let doc = page_to_rag_document(&page);
+                let blocks = client.get_all_top_level_blocks(&id)?;
+                let doc = if blocks.is_empty() {
+                    page_to_rag_document(&page)
+                } else {
+                    page_and_blocks_to_rag_document(&page, &blocks)
+                };
                 emit_json(&doc, out)?;
             }
             NotionCommands::GetDatabase { id, out } => {
