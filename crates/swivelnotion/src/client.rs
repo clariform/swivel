@@ -1,5 +1,11 @@
 use crate::error::NotionError;
-use crate::types::{NotionBlock, NotionBlockList, NotionPage, NotionPageQueryResult};
+use crate::types::{
+    NotionBlock,
+    NotionBlockList,
+    NotionDatabase,
+    NotionPage,
+    NotionPageQueryResult,
+};
 use reqwest::blocking::Client;
 use serde_json::Value;
 use std::env;
@@ -19,6 +25,10 @@ impl NotionClient {
             client: Client::new(),
             api_key,
         })
+    }
+    pub fn get_database_typed(&self, database_id: &str) -> Result<NotionDatabase, NotionError> {
+        let value = self.get_database_raw(database_id)?;
+        Ok(serde_json::from_value(value)?)
     }
 
     fn get_json(&self, url: &str) -> Result<Value, NotionError> {

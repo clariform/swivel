@@ -1,4 +1,4 @@
-use swiveltypes::{BlockNode, RagChunk, RagDocument};
+use swiveltypes::{BlockNode, PropertyValue, RagChunk, RagDocument};
 
 fn is_heading(kind: &str) -> bool {
     matches!(kind, "heading_1" | "heading_2" | "heading_3" | "heading_4")
@@ -318,11 +318,150 @@ fn walk_blocks(
     }
 }
 
+fn property_value_to_text(value: &PropertyValue) -> Option<String> {
+    match value {
+        PropertyValue::Text(s) => {
+            let s = s.trim();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s.to_string())
+            }
+        }
+        PropertyValue::Number(n) => Some(n.to_string()),
+        PropertyValue::Bool(b) => Some(b.to_string()),
+        PropertyValue::Select(s) => {
+            let s = s.trim();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s.to_string())
+            }
+        }
+        PropertyValue::MultiSelect(xs) => {
+            if xs.is_empty() {
+                None
+            } else {
+                Some(xs.join(", "))
+            }
+        }
+        PropertyValue::Relation(xs) => {
+            if xs.is_empty() {
+                None
+            } else {
+                Some(xs.join(", "))
+            }
+        }
+        PropertyValue::Url(s) => {
+            let s = s.trim();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s.to_string())
+            }
+        }
+        PropertyValue::Date(v) => {
+            if v.is_null() {
+                None
+            } else {
+                Some(v.to_string())
+            }
+        }
+        PropertyValue::Json(v) => {
+            if v.is_null() {
+                None
+            } else {
+                Some(v.to_string())
+            }
+        }
+        PropertyValue::Null => None,
+    }
+}
+
+fn build_property_summary_chunk(doc: &RagDocument, index: usize) -> Option<RagChunk> {
+    let priority_keys = [
+        "Name",
+        "Title",
+        "Description",
+        "Notes",
+        "Action",
+        "Command",
+        "Category",
+        "Tags",
+        "Type",
+        "Mode",
+        "Platform",
+        "Scope",
+        "Status",
+        "Tier",
+        "UID",
+        "Prefix",
+        "Docs",
+    ];
+
+    let mut lines = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+
+    for key in priority_keys {
+        if let Some(value) = doc.metadata.properties.get(key) {
+            if let Some(text) = property_value_to_text(value) {
+                lines.push(format!("{key}: {text}"));
+                seen.insert(key.to_string());
+            }
+        }
+    }
+
+    for (key, value) in &doc.metadata.properties {
+        if seen.contains(key) {
+            continue;
+        }
+        if let Some(text) = property_value_to_text(value) {
+            lines.push(format!("{key}: {text}"));
+        }
+    }
+
+    if lines.is_empty() {
+        return None;
+    }
+
+    Some(RagChunk {
+        chunk_id: format!("{}:{index:04}", doc.id),
+        document_id: doc.id.clone(),
+        source: doc.source.clone(),
+        source_kind: doc.source_kind.clone(),
+        page_title: doc.title.clone(),
+        url: doc.url.clone(),
+        chunk_kind: "record_summary".to_string(),
+        heading_path: Vec::new(),
+        local_heading_path: Vec::new(),
+        container_path: Vec::new(),
+        block_ids: Vec::new(),
+        text: format!(
+            "Title: {}\nChunk kind: record_summary\n\n{}",
+            doc.title,
+            lines.join("\n")
+        ),
+        tags: doc.metadata.tags.clone(),
+        relation_ids: doc.metadata.relation_ids.clone(),
+        lineage: doc.lineage.clone(),
+        metadata: serde_json::json!({
+            "source": "properties_fallback"
+        }),
+    })
+}
+
 pub fn chunk_document(doc: &RagDocument) -> Vec<RagChunk> {
     let mut state = ChunkState::new(doc);
     let ctx = TraversalContext::default();
 
     walk_blocks(&doc.blocks, &ctx, &mut state);
+
+    if state.chunks.is_empty() {
+        if let Some(chunk) = build_property_summary_chunk(doc, state.next_index) {
+            state.chunks.push(chunk);
+            state.next_index += 1;
+        }
+    }
 
     state.chunks
 }

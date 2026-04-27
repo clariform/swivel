@@ -141,6 +141,36 @@ pub struct NotionPageQueryResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionDatabaseDataSourceRef {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionDatabase {
+    pub object: String,
+    pub id: String,
+    pub title: Option<Vec<NotionRichText>>,
+    pub description: Option<Vec<NotionRichText>>,
+    pub parent: Option<NotionParent>,
+    pub is_inline: Option<bool>,
+
+    #[serde(default)]
+    pub in_trash: bool,
+
+    #[serde(default)]
+    pub is_locked: bool,
+
+    pub created_time: Option<String>,
+    pub last_edited_time: Option<String>,
+    pub url: Option<String>,
+    pub public_url: Option<String>,
+
+    #[serde(default)]
+    pub data_sources: Vec<NotionDatabaseDataSourceRef>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotionBlockList {
     pub object: String,
     #[serde(default)]

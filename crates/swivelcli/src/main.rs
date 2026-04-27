@@ -50,6 +50,16 @@ enum NotionCommands {
         #[arg(long)]
         out: Option<PathBuf>,
     },
+    GetDatabaseDocs {
+        id: String,
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+    GetDatabaseChunks {
+        id: String,
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
     GetDatabase {
         id: String,
         #[arg(long)]
@@ -82,6 +92,17 @@ fn build_document(client: &NotionClient, id: &str) -> Result<RagDocument> {
     Ok(doc)
 }
 
+fn build_documents_for_data_source(client: &NotionClient, id: &str) -> Result<Vec<RagDocument>> {
+    let pages = client.get_all_pages_for_data_source(id)?;
+    let mut docs = Vec::with_capacity(pages.len());
+
+    for page in pages {
+        docs.push(build_document(client, &page.id)?);
+    }
+
+    Ok(docs)
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let client = NotionClient::from_env()?;
@@ -102,22 +123,38 @@ fn main() -> Result<()> {
                 emit_json(&chunks, out)?;
             }
             NotionCommands::GetDataSourceDocs { id, out } => {
-                let pages = client.get_all_pages_for_data_source(&id)?;
-                let mut docs = Vec::with_capacity(pages.len());
+                let docs = build_documents_for_data_source(&client, &id)?;
+                emit_json(&docs, out)?;
+            }
+            NotionCommands::GetDataSourceChunks { id, out } => {
+                let docs = build_documents_for_data_source(&client, &id)?;
+                let mut chunks: Vec<RagChunk> = Vec::new();
 
-                for page in pages {
-                    docs.push(build_document(&client, &page.id)?);
+                for doc in docs {
+                    chunks.extend(chunk_document(&doc));
+                }
+
+                emit_json(&chunks, out)?;
+            }
+            NotionCommands::GetDatabaseDocs { id, out } => {
+                let database = client.get_database_typed(&id)?;
+                let mut docs: Vec<RagDocument> = Vec::new();
+
+                for data_source in database.data_sources {
+                    docs.extend(build_documents_for_data_source(&client, &data_source.id)?);
                 }
 
                 emit_json(&docs, out)?;
             }
-            NotionCommands::GetDataSourceChunks { id, out } => {
-                let pages = client.get_all_pages_for_data_source(&id)?;
+            NotionCommands::GetDatabaseChunks { id, out } => {
+                let database = client.get_database_typed(&id)?;
                 let mut chunks: Vec<RagChunk> = Vec::new();
 
-                for page in pages {
-                    let doc = build_document(&client, &page.id)?;
-                    chunks.extend(chunk_document(&doc));
+                for data_source in database.data_sources {
+                    let docs = build_documents_for_data_source(&client, &data_source.id)?;
+                    for doc in docs {
+                        chunks.extend(chunk_document(&doc));
+                    }
                 }
 
                 emit_json(&chunks, out)?;
