@@ -10,6 +10,7 @@ use swiveltypes::{
 
 use crate::types::{
     NotionBlock,
+    NotionDatabase,
     NotionPage,
     NotionPropertyValue,
     NotionRichText,
@@ -47,6 +48,26 @@ fn title_from_page(page: &NotionPage) -> String {
         .map(|prop| plain_text(prop.title.as_deref().unwrap_or(&[])))
         .filter(|title| !title.is_empty())
         .unwrap_or_else(|| "Untitled".to_string())
+}
+
+fn title_from_database(db: &NotionDatabase) -> String {
+    let title = plain_text(&db.title).trim().to_string();
+
+    if title.is_empty() {
+        "Untitled".to_string()
+    } else {
+        title
+    }
+}
+
+fn description_from_database(db: &NotionDatabase) -> Option<String> {
+    let description = plain_text(&db.description).trim().to_string();
+
+    if description.is_empty() {
+        None
+    } else {
+        Some(description)
+    }
 }
 
 fn property_to_value(prop: &NotionPropertyValue) -> PropertyValue {
@@ -88,9 +109,7 @@ fn property_to_value(prop: &NotionPropertyValue) -> PropertyValue {
             .checkbox
             .map(PropertyValue::Bool)
             .unwrap_or(PropertyValue::Null),
-        _ => PropertyValue::Json(
-            serde_json::to_value(prop).unwrap_or(serde_json::Value::Null),
-        ),
+        _ => PropertyValue::Json(serde_json::to_value(prop).unwrap_or(serde_json::Value::Null)),
     }
 }
 
@@ -107,6 +126,22 @@ fn build_lineage(page: &NotionPage) -> DocumentLineage {
         }),
         database_id: parent.and_then(|p| p.database_id.clone()),
         data_source_id: parent.and_then(|p| p.data_source_id.clone()),
+    }
+}
+
+fn build_database_lineage(db: &NotionDatabase) -> DocumentLineage {
+    let parent = db.parent.as_ref();
+
+    DocumentLineage {
+        parent_type: parent.map(|p| p.kind.clone()),
+        parent_id: parent.and_then(|p| {
+            p.page_id
+                .clone()
+                .or(p.data_source_id.clone())
+                .or(p.database_id.clone())
+        }),
+        database_id: Some(db.id.clone()),
+        data_source_id: None,
     }
 }
 
@@ -380,7 +415,7 @@ pub fn page_and_blocks_to_rag_document(page: &NotionPage, blocks: &[NotionBlock]
         source: "notion".to_string(),
         source_kind: "page".to_string(),
         title: title_from_page(page),
-        url: page.url.clone(),
+        url: Some(page.url.clone()),
         created_time: page.created_time.clone(),
         last_edited_time: page.last_edited_time.clone(),
         lineage: build_lineage(page),
@@ -391,5 +426,56 @@ pub fn page_and_blocks_to_rag_document(page: &NotionPage, blocks: &[NotionBlock]
         },
         blocks: normalized_blocks,
         plain_text,
+    }
+}
+
+pub fn database_to_rag_document(db: &NotionDatabase) -> RagDocument {
+    let mut properties = BTreeMap::new();
+
+    properties.insert(
+        "Title".to_string(),
+        PropertyValue::Text(title_from_database(db)),
+    );
+
+    if let Some(description) = description_from_database(db) {
+        properties.insert(
+            "Description".to_string(),
+            PropertyValue::Text(description),
+        );
+    }
+
+    let schema = db
+        .properties
+        .iter()
+        .map(|(name, prop)| {
+            serde_json::json!({
+                "name": name,
+                "type": prop.kind,
+                "id": prop.id,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    properties.insert(
+        "Schema".to_string(),
+        PropertyValue::Json(serde_json::Value::Array(schema)),
+    );
+
+    RagDocument {
+        id: db.id.clone(),
+        source: "notion".to_string(),
+        source_kind: "database".to_string(),
+        title: title_from_database(db),
+        url: Some(db.url.clone()),
+        created_time: db.created_time.clone(),
+        last_edited_time: db.last_edited_time.clone(),
+        lineage: build_database_lineage(db),
+        metadata: DocumentMetadata {
+            properties,
+            relation_ids: BTreeMap::new(),
+            tags: Vec::new(),
+        },
+        blocks: Vec::new(),
+        plain_text: String::new(),
     }
 }

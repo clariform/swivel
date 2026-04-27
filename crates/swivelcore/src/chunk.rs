@@ -180,11 +180,7 @@ fn update_heading_path(path: &mut Vec<String>, kind: &str, text: &str) {
     }
 }
 
-fn walk_blocks(
-    blocks: &[BlockNode],
-    ctx: &TraversalContext,
-    state: &mut ChunkState<'_>,
-) {
+fn walk_blocks(blocks: &[BlockNode], ctx: &TraversalContext, state: &mut ChunkState<'_>) {
     let mut i = 0usize;
     let mut current_ctx = ctx.clone();
 
@@ -481,9 +477,84 @@ fn build_property_summary_chunk(doc: &RagDocument, index: usize) -> Option<RagCh
     })
 }
 
+fn build_database_summary_chunk(doc: &RagDocument, index: usize) -> Option<RagChunk> {
+    if doc.source_kind != "database" {
+        return None;
+    }
+
+    let title = doc.title.trim();
+    if title.is_empty() {
+        return None;
+    }
+
+    let description = doc
+        .metadata
+        .properties
+        .get("Description")
+        .and_then(property_value_to_text);
+
+    let schema_lines = match doc.metadata.properties.get("Schema") {
+        Some(PropertyValue::Json(serde_json::Value::Array(items))) => items
+            .iter()
+            .filter_map(|item| {
+                let name = item.get("name").and_then(|v| v.as_str())?;
+                let kind = item.get("type").and_then(|v| v.as_str()).unwrap_or("unknown");
+                Some(format!("- {name}: {kind}"))
+            })
+            .collect::<Vec<_>>(),
+        _ => Vec::new(),
+    };
+
+    let mut parts = Vec::new();
+    parts.push(format!("Title: {title}"));
+    parts.push("Chunk kind: database_summary".to_string());
+    parts.push(String::new());
+
+    if let Some(desc) = description {
+        parts.push(format!("Description: {desc}"));
+        parts.push(String::new());
+    }
+
+    if !schema_lines.is_empty() {
+        parts.push("Schema:".to_string());
+        parts.extend(schema_lines);
+    } else {
+        parts.push("Schema: unavailable".to_string());
+    }
+
+    Some(RagChunk {
+        chunk_id: format!("{}:{index:04}", doc.id),
+        document_id: doc.id.clone(),
+        source: doc.source.clone(),
+        source_kind: doc.source_kind.clone(),
+        page_title: doc.title.clone(),
+        url: doc.url.clone(),
+        chunk_kind: "database_summary".to_string(),
+        heading_path: Vec::new(),
+        local_heading_path: Vec::new(),
+        container_path: Vec::new(),
+        block_ids: Vec::new(),
+        text: parts.join("\n"),
+        tags: doc.metadata.tags.clone(),
+        relation_ids: doc.metadata.relation_ids.clone(),
+        lineage: doc.lineage.clone(),
+        metadata: serde_json::json!({
+            "source": "database_metadata"
+        }),
+    })
+}
+
 pub fn chunk_document(doc: &RagDocument) -> Vec<RagChunk> {
     let mut state = ChunkState::new(doc);
     let ctx = TraversalContext::default();
+
+    if doc.source_kind == "database" {
+        if let Some(chunk) = build_database_summary_chunk(doc, state.next_index) {
+            state.chunks.push(chunk);
+            state.next_index += 1;
+        }
+        return state.chunks;
+    }
 
     walk_blocks(&doc.blocks, &ctx, &mut state);
 

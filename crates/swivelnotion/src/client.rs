@@ -26,10 +26,6 @@ impl NotionClient {
             api_key,
         })
     }
-    pub fn get_database_typed(&self, database_id: &str) -> Result<NotionDatabase, NotionError> {
-        let value = self.get_database_raw(database_id)?;
-        Ok(serde_json::from_value(value)?)
-    }
 
     fn get_json(&self, url: &str) -> Result<Value, NotionError> {
         let response = self
@@ -122,6 +118,11 @@ impl NotionClient {
         Ok(serde_json::from_value(value)?)
     }
 
+    pub fn get_database_typed(&self, database_id: &str) -> Result<NotionDatabase, NotionError> {
+        let value = self.get_database_raw(database_id)?;
+        Ok(serde_json::from_value(value)?)
+    }
+
     pub fn query_data_source_typed(
         &self,
         data_source_id: &str,
@@ -163,7 +164,10 @@ impl NotionClient {
         Ok(results)
     }
 
-    pub fn get_all_top_level_blocks(&self, page_id: &str) -> Result<Vec<NotionBlock>, NotionError> {
+    pub fn get_all_top_level_blocks(
+        &self,
+        page_id: &str,
+    ) -> Result<Vec<NotionBlock>, NotionError> {
         let mut results = Vec::new();
         let mut cursor: Option<String> = None;
 
@@ -181,7 +185,10 @@ impl NotionClient {
         Ok(results)
     }
 
-    fn get_all_child_blocks_for_block(&self, block_id: &str) -> Result<Vec<NotionBlock>, NotionError> {
+    fn get_all_child_blocks_for_block(
+        &self,
+        block_id: &str,
+    ) -> Result<Vec<NotionBlock>, NotionError> {
         let mut results = Vec::new();
         let mut cursor: Option<String> = None;
 
