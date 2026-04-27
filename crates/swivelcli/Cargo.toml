@@ -16,3 +16,9 @@ serde_json.workspace = true
 swivelcore = { path = "../swivelcore" }
 swivelnotion = { path = "../swivelnotion" }
 swiveltypes = { path = "../swiveltypes" }
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+serde_json.workspace = true
+tempfile = "3"

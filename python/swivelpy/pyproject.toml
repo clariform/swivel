@@ -1,0 +1,22 @@
+[project]
+name = "swivelpy"
+version = "0.1.0"
+description = "Python wrapper for the Swivel source retrieval CLI"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "Suhail" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6.0",
+  "mypy>=1.10"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
