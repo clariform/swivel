@@ -16,9 +16,7 @@ fn compact_id(id: &str) -> String {
 }
 
 fn assert_id_eq(actual: &Value, expected: &str) {
-    let actual = actual
-        .as_str()
-        .expect("actual ID should be a JSON string");
+    let actual = actual.as_str().expect("actual ID should be a JSON string");
 
     assert_eq!(compact_id(actual), compact_id(expected));
 }
@@ -132,7 +130,11 @@ fn get_data_source_docs_returns_two_page_documents() {
     let value = run_json(&["notion", "get-data-source-docs", DATA_SOURCE_ID]);
 
     let docs = value.as_array().expect("docs output should be an array");
-    assert_eq!(docs.len(), 2, "test data source should contain exactly two pages");
+    assert_eq!(
+        docs.len(),
+        2,
+        "test data source should contain exactly two pages"
+    );
 
     let ids = docs
         .iter()
@@ -262,10 +264,7 @@ fn out_flag_writes_valid_json_file() {
     let dir = tempdir().expect("failed to create temp dir");
     let out_path = dir.path().join("page_doc.json");
 
-    let value = run_json_to_file(
-        &["notion", "get-page-doc", PAGE_IDS[0]],
-        &out_path,
-    );
+    let value = run_json_to_file(&["notion", "get-page-doc", PAGE_IDS[0]], &out_path);
 
     assert_eq!(value["source"], "notion");
     assert_eq!(value["source_kind"], "page");

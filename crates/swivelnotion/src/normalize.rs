@@ -1,24 +1,17 @@
 use std::collections::BTreeMap;
 
-use swiveltypes::{
-    BlockNode,
-    DocumentLineage,
-    DocumentMetadata,
-    PropertyValue,
-    RagDocument,
-};
+use swiveltypes::{BlockNode, DocumentLineage, DocumentMetadata, PropertyValue, RagDocument};
 
 use crate::types::{
-    NotionBlock,
-    NotionDatabase,
-    NotionPage,
-    NotionPropertyValue,
-    NotionRichText,
+    NotionBlock, NotionDatabase, NotionPage, NotionPropertyValue, NotionRichText,
     NotionTableRowBlock,
 };
 
 fn plain_text(parts: &[NotionRichText]) -> String {
-    parts.iter().map(|x| x.plain_text.as_str()).collect::<String>()
+    parts
+        .iter()
+        .map(|x| x.plain_text.as_str())
+        .collect::<String>()
 }
 
 fn rich_texts_to_plain_text(items: &[NotionRichText]) -> String {
@@ -438,10 +431,7 @@ pub fn database_to_rag_document(db: &NotionDatabase) -> RagDocument {
     );
 
     if let Some(description) = description_from_database(db) {
-        properties.insert(
-            "Description".to_string(),
-            PropertyValue::Text(description),
-        );
+        properties.insert("Description".to_string(), PropertyValue::Text(description));
     }
 
     let schema = db

@@ -1,10 +1,6 @@
 use crate::error::NotionError;
 use crate::types::{
-    NotionBlock,
-    NotionBlockList,
-    NotionDatabase,
-    NotionPage,
-    NotionPageQueryResult,
+    NotionBlock, NotionBlockList, NotionDatabase, NotionPage, NotionPageQueryResult,
 };
 use reqwest::blocking::Client;
 use serde_json::Value;
@@ -164,10 +160,7 @@ impl NotionClient {
         Ok(results)
     }
 
-    pub fn get_all_top_level_blocks(
-        &self,
-        page_id: &str,
-    ) -> Result<Vec<NotionBlock>, NotionError> {
+    pub fn get_all_top_level_blocks(&self, page_id: &str) -> Result<Vec<NotionBlock>, NotionError> {
         let mut results = Vec::new();
         let mut cursor: Option<String> = None;
 
@@ -206,7 +199,10 @@ impl NotionClient {
         Ok(results)
     }
 
-    fn attach_children_recursive(&self, mut block: NotionBlock) -> Result<NotionBlock, NotionError> {
+    fn attach_children_recursive(
+        &self,
+        mut block: NotionBlock,
+    ) -> Result<NotionBlock, NotionError> {
         if !block.has_children {
             return Ok(block);
         }

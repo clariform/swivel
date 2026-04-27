@@ -5,9 +5,7 @@ use swivelcore::chunk::chunk_document;
 use swivelcore::write_json_pretty;
 use swivelnotion::client::NotionClient;
 use swivelnotion::normalize::{
-    database_to_rag_document,
-    page_and_blocks_to_rag_document,
-    page_to_rag_document,
+    database_to_rag_document, page_and_blocks_to_rag_document, page_to_rag_document,
 };
 use swiveltypes::{RagChunk, RagDocument};
 

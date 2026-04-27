@@ -11,14 +11,7 @@ fn is_list_item(kind: &str) -> bool {
 fn is_standalone(kind: &str) -> bool {
     matches!(
         kind,
-        "paragraph"
-            | "quote"
-            | "to_do"
-            | "toggle"
-            | "code"
-            | "callout"
-            | "equation"
-            | "child_page"
+        "paragraph" | "quote" | "to_do" | "toggle" | "code" | "callout" | "equation" | "child_page"
     )
 }
 
@@ -498,7 +491,10 @@ fn build_database_summary_chunk(doc: &RagDocument, index: usize) -> Option<RagCh
             .iter()
             .filter_map(|item| {
                 let name = item.get("name").and_then(|v| v.as_str())?;
-                let kind = item.get("type").and_then(|v| v.as_str()).unwrap_or("unknown");
+                let kind = item
+                    .get("type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
                 Some(format!("- {name}: {kind}"))
             })
             .collect::<Vec<_>>(),
