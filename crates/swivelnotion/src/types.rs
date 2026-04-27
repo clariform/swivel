@@ -49,6 +49,24 @@ pub struct NotionTextRef {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionChildPageBlock {
+    pub title: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionTableBlock {
+    pub table_width: usize,
+    pub has_column_header: bool,
+    pub has_row_header: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotionTableRowBlock {
+    #[serde(default)]
+    pub cells: Vec<Vec<NotionRichText>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotionAnnotations {
     pub bold: bool,
     pub italic: bool,
@@ -291,6 +309,11 @@ pub struct NotionBlock {
     pub callout: Option<NotionCalloutBlock>,
     pub divider: Option<NotionDividerBlock>,
     pub equation: Option<NotionEquationBlock>,
+
+    pub child_page: Option<NotionChildPageBlock>,
+    pub table: Option<NotionTableBlock>,
+    pub table_row: Option<NotionTableRowBlock>,
+
     pub unsupported: Option<NotionUnsupportedBlock>,
 
     #[serde(skip)]

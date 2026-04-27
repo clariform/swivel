@@ -18,6 +18,7 @@ fn is_standalone(kind: &str) -> bool {
             | "code"
             | "callout"
             | "equation"
+            | "child_page"
     )
 }
 
@@ -211,6 +212,36 @@ fn walk_blocks(
             if !block.children.is_empty() {
                 walk_blocks(&block.children, &current_ctx, state);
             }
+
+            i += 1;
+            continue;
+        }
+
+        if block.kind == "table" {
+            let mut block_ids = Vec::new();
+            let mut lines = Vec::new();
+
+            for child in &block.children {
+                if child.kind == "table_row" {
+                    if let Some(id) = &child.id {
+                        block_ids.push(id.clone());
+                    }
+                    if let Some(text) = &child.text {
+                        let trimmed = text.trim();
+                        if !trimmed.is_empty() {
+                            lines.push(format!("| {trimmed} |"));
+                        }
+                    }
+                }
+            }
+
+            state.push_chunk(
+                &current_ctx,
+                "table",
+                block_ids,
+                lines.join("\n"),
+                block.metadata.clone(),
+            );
 
             i += 1;
             continue;

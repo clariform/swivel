@@ -13,10 +13,31 @@ use crate::types::{
     NotionPage,
     NotionPropertyValue,
     NotionRichText,
+    NotionTableRowBlock,
 };
 
 fn plain_text(parts: &[NotionRichText]) -> String {
     parts.iter().map(|x| x.plain_text.as_str()).collect::<String>()
+}
+
+fn rich_texts_to_plain_text(items: &[NotionRichText]) -> String {
+    items
+        .iter()
+        .map(|x| x.plain_text.as_str())
+        .collect::<Vec<_>>()
+        .join("")
+        .trim()
+        .to_string()
+}
+
+fn table_row_to_text(row: &NotionTableRowBlock) -> String {
+    let cells = row
+        .cells
+        .iter()
+        .map(|cell| rich_texts_to_plain_text(cell))
+        .collect::<Vec<_>>();
+
+    cells.join(" | ")
 }
 
 fn title_from_page(page: &NotionPage) -> String {
@@ -204,7 +225,9 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
             text: block.code.as_ref().map(|b| plain_text(&b.rich_text)),
             metadata: metadata_json(serde_json::json!({
                 "language": block.code.as_ref().and_then(|b| b.language.clone()),
-                "caption": block.code.as_ref().map(|b| plain_text(b.caption.as_deref().unwrap_or(&[]))).filter(|s| !s.is_empty())
+                "caption": block.code.as_ref()
+                    .map(|b| plain_text(b.caption.as_deref().unwrap_or(&[])))
+                    .filter(|s| !s.is_empty())
             })),
             children,
         },
@@ -214,7 +237,9 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
             text: block.callout.as_ref().map(|b| plain_text(&b.rich_text)),
             metadata: metadata_json(serde_json::json!({
                 "has_children": block.has_children,
-                "icon_type": block.callout.as_ref().and_then(|b| b.icon.as_ref().map(|i| i.kind.clone()))
+                "icon_type": block.callout
+                    .as_ref()
+                    .and_then(|b| b.icon.as_ref().map(|i| i.kind.clone()))
             })),
             children,
         },
@@ -234,6 +259,54 @@ fn block_to_node(block: &NotionBlock) -> BlockNode {
             })),
             children,
         },
+        "child_page" => {
+            let title = block
+                .child_page
+                .as_ref()
+                .map(|x| x.title.clone())
+                .unwrap_or_default();
+
+            BlockNode {
+                id: Some(block.id.clone()),
+                kind: "child_page".to_string(),
+                text: if title.is_empty() { None } else { Some(title) },
+                metadata: metadata_json(serde_json::json!({
+                    "has_children": block.has_children
+                })),
+                children,
+            }
+        }
+        "table" => {
+            let table = block.table.as_ref();
+
+            BlockNode {
+                id: Some(block.id.clone()),
+                kind: "table".to_string(),
+                text: None,
+                metadata: metadata_json(serde_json::json!({
+                    "has_children": block.has_children,
+                    "table_width": table.map(|x| x.table_width),
+                    "has_column_header": table.map(|x| x.has_column_header),
+                    "has_row_header": table.map(|x| x.has_row_header)
+                })),
+                children,
+            }
+        }
+        "table_row" => {
+            let text = block
+                .table_row
+                .as_ref()
+                .map(table_row_to_text)
+                .unwrap_or_default();
+
+            BlockNode {
+                id: Some(block.id.clone()),
+                kind: "table_row".to_string(),
+                text: if text.is_empty() { None } else { Some(text) },
+                metadata: metadata_json(serde_json::json!({})),
+                children,
+            }
+        }
         _ => BlockNode {
             id: Some(block.id.clone()),
             kind: format!("unsupported:{}", block.kind),
