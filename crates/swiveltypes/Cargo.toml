@@ -3,6 +3,8 @@ name = "swiveltypes"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Shared data types for Swivel source retrieval and chunking"
+repository = "https://github.com/clariform/swivel"
 
 [dependencies]
 serde.workspace = true

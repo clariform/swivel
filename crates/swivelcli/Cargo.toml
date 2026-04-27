@@ -3,6 +3,8 @@ name = "swivelcli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Command-line interface for Swivel source retrieval"
+repository = "https://github.com/clariform/swivel"
 
 [[bin]]
 name = "swivel"
@@ -13,9 +15,9 @@ anyhow.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-swivelcore = { path = "../swivelcore" }
-swivelnotion = { path = "../swivelnotion" }
-swiveltypes = { path = "../swiveltypes" }
+swivelcore = { path = "../swivelcore", version = "0.1.1" }
+swivelnotion = { path = "../swivelnotion", version = "0.1.1" }
+swiveltypes = { path = "../swiveltypes", version = "0.1.1" }
 
 [dev-dependencies]
 assert_cmd = "2"

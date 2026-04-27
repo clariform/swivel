@@ -3,9 +3,11 @@ name = "swivelcore"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Core chunking logic for Swivel"
+repository = "https://github.com/clariform/swivel"
 
 [dependencies]
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-swiveltypes = { path = "../swiveltypes" }
+swiveltypes = { path = "../swiveltypes", version = "0.1.1" }

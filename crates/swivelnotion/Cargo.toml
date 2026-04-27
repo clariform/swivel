@@ -3,10 +3,12 @@ name = "swivelnotion"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Notion source connector for Swivel"
+repository = "https://github.com/clariform/swivel"
 
 [dependencies]
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 reqwest.workspace = true
-swiveltypes = { path = "../swiveltypes" }
+swiveltypes = { path = "../swiveltypes", version = "0.1.1" }
